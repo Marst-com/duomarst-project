@@ -1,5 +1,5 @@
 // 배포 시 실제 백엔드 주소로 바꿔주세요.
-const API_BASE_URL = "http://localhost:4000";
+const API_BASE_URL = "https://duomarst-project.onrender.com";
 
 /* ---------- 테마 토글 (다크/화이트) ---------- */
 (function initTheme() {
