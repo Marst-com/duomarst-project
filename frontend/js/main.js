@@ -50,6 +50,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     submitBtn.disabled = true;
     submitBtn.textContent = "전송 중...";
+    setMsg(msgEl, "처리 중입니다. 처리 중에는 이 창을 닫지 마세요.", "info");
 
     try {
       const res = await fetch(`${API_BASE_URL}/contact`, {
@@ -134,6 +135,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     submitBtn.disabled = true;
+    setMsg(msgEl, "처리 중입니다. 처리 중에는 이 창을 닫지 마세요.", "info");
 
     try {
       const endpoint = mode === "login" ? "/auth/login" : "/auth/register";
