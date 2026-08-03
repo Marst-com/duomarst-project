@@ -319,6 +319,7 @@ section { padding: 72px 0; }
 }
 .form-msg.error { color: var(--danger); }
 .form-msg.success { color: var(--accent-a); }
+.form-msg.info { color: var(--text-muted); }
 
 .divider {
   display: flex;
