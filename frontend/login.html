@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>로그인 — DuoMarst</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="index.html" class="logo"><span class="logo-dot"></span>DuoMarst</a>
+    <div class="nav-links">
+      <a href="about.html">소개</a>
+      <a href="members.html">멤버</a>
+      <a href="pricing.html">가격</a>
+      <a href="booking.html">예약</a>
+      <a href="contact.html">문의</a>
+      <button class="theme-toggle" id="themeToggle" aria-label="테마 전환">🌙</button>
+    </div>
+  </div>
+</nav>
+
+<section style="padding-top:64px">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow" id="formMode">Login</span>
+      <h2 id="formTitle">로그인</h2>
+    </div>
+
+    <form class="form-panel" id="authForm" novalidate>
+      <div class="field">
+        <label for="email">이메일</label>
+        <input type="email" id="email" name="email" required />
+      </div>
+      <div class="field">
+        <label for="password">비밀번호</label>
+        <input type="password" id="password" name="password" minlength="8" required />
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%" id="authSubmit">로그인</button>
+      <p class="form-msg" id="authMsg"></p>
+
+      <div class="divider">또는</div>
+
+      <a href="#" id="googleLoginLink" class="btn btn-ghost" style="width:100%">Google로 계속하기</a>
+
+      <p class="switch-line">
+        <span id="switchText">계정이 없으신가요?</span>
+        <button type="button" id="switchBtn">회원가입</button>
+      </p>
+    </form>
+  </div>
+</section>
+
+<script src="js/main.js"></script>
+</body>
+</html>
