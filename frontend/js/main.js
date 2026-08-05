@@ -10,7 +10,7 @@ const API_BASE_URL = "https://duomarst-project.onrender.com";
 function navHTML(variant) {
   let rightLink;
   if (variant === "dashboard") {
-    rightLink = `<button class="btn btn-ghost" id="logoutBtn">로그아웃</button>`;
+    rightLink = `<span id="navAvatarSlot"></span><button class="btn btn-ghost" id="logoutBtn">로그아웃</button>`;
   } else if (variant === "bare") {
     rightLink = "";
   } else {
@@ -543,6 +543,19 @@ const PAGE_BODIES = {
     </div>
   </div>
 </section>
+
+<section id="adminPanel" style="display:none">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">Admin</span>
+      <h2>전체 예약 관리</h2>
+      <p>관리자 계정으로 로그인 중이라 모든 예약을 볼 수 있어요.</p>
+    </div>
+    <div id="adminBookingList" class="booking-list">
+      <p class="form-msg info">불러오는 중...</p>
+    </div>
+  </div>
+</section>
 `
 };
 const PAGE_META = {
@@ -577,16 +590,38 @@ function initAuthNav() {
   const loginLink = document.querySelector('nav a[href="login.html"]');
   if (!loginLink) return; // 로그인 페이지 자체이거나 대시보드(이미 로그아웃 버튼 있음)
 
+  // 직전에 로그인/가입에 성공했던 힌트가 있으면, 서버 확인이 끝나기 전까지
+  // "로그인" 버튼 대신 로딩 중인 아바타를 먼저 보여줘서 로그아웃된 것처럼 안 보이게 함
+  if (localStorage.getItem("duomarst-logged-in")) {
+    loginLink.innerHTML = `<span class="nav-avatar nav-avatar-loading"></span><span>확인 중...</span>`;
+    loginLink.classList.add("nav-user");
+  }
+
   fetch(`${API_BASE_URL}/auth/me`, { credentials: "include" })
     .then((res) => (res.ok ? res.json() : null))
     .then((data) => {
-      if (!data) return;
+      if (!data) {
+        // 힌트는 있었지만 실제로는 로그인 상태가 아님 -> 원래 로그인 버튼으로 되돌림
+        localStorage.removeItem("duomarst-logged-in");
+        loginLink.setAttribute("href", "login.html");
+        loginLink.textContent = "로그인";
+        loginLink.classList.remove("nav-user");
+        return;
+      }
+      localStorage.setItem("duomarst-logged-in", "1");
       const shortEmail = data.email.length > 16 ? data.email.slice(0, 14) + "…" : data.email;
+      const avatar = data.picture
+        ? `<img src="${data.picture}" alt="" class="nav-avatar" referrerpolicy="no-referrer" />`
+        : `<span class="nav-avatar nav-avatar-fallback">${data.email.charAt(0).toUpperCase()}</span>`;
+
       loginLink.setAttribute("href", "dashboard.html");
-      loginLink.textContent = shortEmail;
+      loginLink.innerHTML = `${avatar}<span>${shortEmail}</span>`;
       loginLink.classList.add("nav-user");
     })
-    .catch(() => {});
+    .catch(() => {
+      // 네트워크 오류일 뿐일 수 있으니, 힌트가 있었다면 로딩 표시를 그대로 둔다
+      // (완전히 실패로 확정된 게 아니라 서버가 느린 것일 수 있기 때문)
+    });
 }
 
 function initThemeToggle() {
@@ -769,6 +804,7 @@ function initAuthForm() {
       if (!res.ok) {
         setMsg(msgEl, data.error || "처리에 실패했습니다.", "error");
       } else {
+        localStorage.setItem("duomarst-logged-in", "1");
         window.location.href = "dashboard.html";
       }
     } catch (err) {
@@ -911,54 +947,94 @@ function initDashboard() {
   const welcomeMsg = document.getElementById("welcomeMsg");
   const logoutBtn = document.getElementById("logoutBtn");
   const bookingList = document.getElementById("bookingList");
+  const navAvatarSlot = document.getElementById("navAvatarSlot");
+  const adminPanel = document.getElementById("adminPanel");
+  const adminBookingList = document.getElementById("adminBookingList");
   if (!welcomeMsg) return;
 
+  function renderBookingCards(container, bookings, showEmail) {
+    if (!bookings.length) {
+      container.innerHTML = `<p class="form-msg">예약 내역이 없어요.</p>`;
+      return;
+    }
+    const todayStr = new Date().toISOString().slice(0, 10);
+    container.innerHTML = bookings
+      .map((b) => {
+        const isPast = b.date < todayStr;
+        return `
+      <div class="card booking-card${isPast ? " past" : ""}">
+        <div>
+          <span class="timeline-year">${b.date} · ${b.time}</span>
+          ${isPast ? '<span class="booking-tag">지난 예약</span>' : '<span class="booking-tag upcoming">예정</span>'}
+        </div>
+        ${showEmail ? `<p style="margin-top:6px; color:var(--text-muted); font-size:0.85rem">${b.name} · ${b.email}</p>` : ""}
+        ${b.message ? `<p style="margin-top:8px">${b.message}</p>` : ""}
+      </div>`;
+      })
+      .join("");
+  }
+
   (async () => {
+    // 로그인 정보(이메일/아바타/관리자 여부) 먼저 확인
+    let me = null;
+    try {
+      const meRes = await fetch(`${API_BASE_URL}/auth/me`, { credentials: "include" });
+      if (!meRes.ok) {
+        localStorage.removeItem("duomarst-logged-in");
+        window.location.href = "login.html";
+        return;
+      }
+      me = await meRes.json();
+      localStorage.setItem("duomarst-logged-in", "1");
+    } catch (err) {
+      window.location.href = "login.html";
+      return;
+    }
+
+    if (navAvatarSlot) {
+      navAvatarSlot.innerHTML = me.picture
+        ? `<img src="${me.picture}" alt="" class="nav-avatar" referrerpolicy="no-referrer" />`
+        : `<span class="nav-avatar nav-avatar-fallback">${me.email.charAt(0).toUpperCase()}</span>`;
+    }
+
     try {
       const res = await fetch(`${API_BASE_URL}/api/user/dashboard-data`, {
         credentials: "include",
       });
-      if (!res.ok) {
-        window.location.href = "login.html";
-        return;
-      }
       const data = await res.json();
-      welcomeMsg.textContent = data.message;
+      welcomeMsg.textContent = res.ok ? data.message : me.email;
     } catch (err) {
-      welcomeMsg.textContent = "정보를 불러오지 못했습니다.";
-      return;
+      welcomeMsg.textContent = me.email;
     }
 
-    if (!bookingList) return;
-    try {
-      const res = await fetch(`${API_BASE_URL}/booking/my`, {
-        credentials: "include",
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        bookingList.innerHTML = `<p class="form-msg error">${data.error || "예약 내역을 불러오지 못했습니다."}</p>`;
-        return;
+    if (bookingList) {
+      try {
+        const res = await fetch(`${API_BASE_URL}/booking/my`, { credentials: "include" });
+        const data = await res.json();
+        if (!res.ok) {
+          bookingList.innerHTML = `<p class="form-msg error">${data.error || "예약 내역을 불러오지 못했습니다."}</p>`;
+        } else {
+          renderBookingCards(bookingList, data.bookings, false);
+        }
+      } catch (err) {
+        bookingList.innerHTML = `<p class="form-msg error">네트워크 오류가 발생했습니다.</p>`;
       }
-      if (!data.bookings.length) {
-        bookingList.innerHTML = `<p class="form-msg">아직 예약한 상담이 없어요.</p>`;
-        return;
+    }
+
+    // 관리자면 전체 예약 목록도 보여줌
+    if (me.isAdmin && adminPanel && adminBookingList) {
+      adminPanel.style.display = "block";
+      try {
+        const res = await fetch(`${API_BASE_URL}/booking/all`, { credentials: "include" });
+        const data = await res.json();
+        if (!res.ok) {
+          adminBookingList.innerHTML = `<p class="form-msg error">${data.error || "불러오지 못했습니다."}</p>`;
+        } else {
+          renderBookingCards(adminBookingList, data.bookings, true);
+        }
+      } catch (err) {
+        adminBookingList.innerHTML = `<p class="form-msg error">네트워크 오류가 발생했습니다.</p>`;
       }
-      const todayStr = new Date().toISOString().slice(0, 10);
-      bookingList.innerHTML = data.bookings
-        .map((b) => {
-          const isPast = b.date < todayStr;
-          return `
-        <div class="card booking-card${isPast ? " past" : ""}">
-          <div>
-            <span class="timeline-year">${b.date} · ${b.time}</span>
-            ${isPast ? '<span class="booking-tag">지난 예약</span>' : '<span class="booking-tag upcoming">예정</span>'}
-          </div>
-          ${b.message ? `<p style="margin-top:8px">${b.message}</p>` : ""}
-        </div>`;
-        })
-        .join("");
-    } catch (err) {
-      bookingList.innerHTML = `<p class="form-msg error">네트워크 오류가 발생했습니다.</p>`;
     }
   })();
 
@@ -970,6 +1046,7 @@ function initDashboard() {
           credentials: "include",
         });
       } finally {
+        localStorage.removeItem("duomarst-logged-in");
         window.location.href = "login.html";
       }
     });
