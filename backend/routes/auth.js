@@ -9,11 +9,15 @@ const router = express.Router();
 const SESSION_MAX_AGE_MS = 5 * 24 * 60 * 60 * 1000; // 5일
 
 function setSessionCookie(res, sessionCookie) {
+  const isProd = process.env.NODE_ENV === "production";
   res.cookie("session", sessionCookie, {
     maxAge: SESSION_MAX_AGE_MS,
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
+    // 프론트(Vercel)와 백엔드(Render) 도메인이 서로 다른 크로스 사이트 배포이므로,
+    // sameSite: "none"이어야 브라우저가 fetch 요청에 쿠키를 실어 보낸다.
+    // sameSite: "none"은 secure: true(HTTPS)가 반드시 함께 있어야 브라우저가 허용한다.
+    secure: isProd,
+    sameSite: isProd ? "none" : "lax",
     path: "/",
   });
 }
